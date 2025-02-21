@@ -3,7 +3,7 @@ library(dplyr);library(ffscrapr);library(googledrive);library(googlesheets4)
 library(readr); library(openxlsx)
 
 ########## Reading in csv from google drive ##########
-drive_auth()
+drive_auth(use_oob = TRUE)
 
 
 file <- drive_get("ff_data.xlsx")  # Replace with your actual filename
@@ -16,14 +16,14 @@ drive_download(file, path = temp_file, overwrite = TRUE)  # Download the file
 wb <- loadWorkbook(temp_file)  # Open the workbook
 
 # Read each sheet into a data frame
-season_stats_all <- read.xlsx(wb, sheet = "Sheet1")
-weekly_stats_all <- read.xlsx(wb, sheet = "Sheet2")
+season_stats_all <- read.xlsx(wb, sheet = "Season")
+weekly_stats_all <- read.xlsx(wb, sheet = "Weekly")
 
 
 ##### removing all rows from current season so season metrics can be recalculated given this runs every week #####
 cur_year <- lubridate::year(Sys.Date())
-season_stats_all <- season_stats_all %>% filter(season != cur_year)
-weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year)
+season_stats_all <- season_stats_all %>% filter(season != cur_year) %>% select(-X1)
+weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year) %>% select(-X1)
 
 
 
@@ -65,52 +65,80 @@ weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year)
 nflreadr::.clear_cache()
 
 # loading in play by play data from 2021-2024
-pbp2024 <- load_pbp(2024)
-pbp2023 <- load_pbp(2023)
-pbp2022 <- load_pbp(2022)
-pbp2021 <- load_pbp(2021)
+#pbp2024 <- load_pbp(2024)
+#pbp2023 <- load_pbp(2023)
+#pbp2022 <- load_pbp(2022)
+#pbp2021 <- load_pbp(2021)
 
 # loading in teams (could use for logos on dashboard)
-teams <- load_teams()
+#teams <- load_teams()
 
 # loading in fantasy football player ids (should make it easier to connect data)
-ff_ids <- load_ff_playerids()
+#ff_ids <- load_ff_playerids()
 
 
 # loading in fantasy rankings
 # their ID is the same as fantasypros_id in ff_ids
-ff_rankings <- load_ff_rankings()
+#ff_rankings <- load_ff_rankings()
 
 
 # loading in injury data from 2021-2024
-injuries2024 <- load_injuries(2024)
-injuries2023 <- load_injuries(2023)
-injuries2022 <- load_injuries(2022)
-injuries2021 <- load_injuries(2021)
+#injuries2024 <- load_injuries(2024)
+#injuries2023 <- load_injuries(2023)
+#injuries2022 <- load_injuries(2022)
+#injuries2021 <- load_injuries(2021)
 
 
-depth_charts <- load_depth_charts() %>%
-  filter(position %in% c("K", "QB", "RB", "TE", "WR"))
+#depth_charts <- load_depth_charts() %>%
+#  filter(position %in% c("K", "QB", "RB", "TE", "WR"))
 
 
-NextGenStats <- load_nextgen_stats() %>% filter(season > 2020)
+#NextGenStats <- load_nextgen_stats() %>% filter(season > 2020)
 
 ##############################################################
 
-cur_year <- lubridate::year(Sys.Date())
+########## Weekly data gathering/calculations ##########
+
+##### Offensive data #####
 
 # replace cur_year with 2024 to get data just to test on
-weekly_data <- load_player_stats(seasons = cur_year) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
+offense_weekly <- load_player_stats(seasons = c(2024)) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
 
 # getting half ppr calculations
-weekly_data <- weekly_data %>%
+offense_weekly <- offense_weekly %>%
   mutate(half_PPR = (passing_yards * 0.04) + (passing_tds * 4) + (rushing_yards * 0.1) + (rushing_tds * 6) + (receptions * 0.5) + (receiving_yards * 0.1) + (receiving_tds * 6) + ((rushing_fumbles_lost + sack_fumbles_lost + receiving_fumbles_lost + interceptions) * -2) + ((passing_2pt_conversions + rushing_2pt_conversions + receiving_2pt_conversions)*2)) 
 
 
-season_stats <- weekly_data %>%
+##### Kicking data #####
+
+kicking <- load_player_stats(season = c(2024), stat_type = "kicking")
+
+# adding extra columns that are the same to help with lining up columns are all data
+kicking_weekly <- kicking %>%
+  mutate(fantasy_points = case_when(
+    fg_att == 0 & pat_att == 0 ~ 0,
+    TRUE ~ ((fg_made_0_19 + fg_made_20_29 + fg_made_30_39) * 3) + (fg_made_40_49 * 4) + (fg_made_50_59 * 5) + (fg_made_60_ * 6) + (pat_made) - fg_missed - fg_blocked - pat_missed - pat_blocked
+  ),
+  fantasy_points_ppr = fantasy_points,
+  half_PPR = fantasy_points
+  )
+
+##### Defense data #####
+#defense_weekly<- load_player_stats(season = 2024, stat_type = "defense")
+
+
+
+
+########## Creating season totals ##########
+
+
+##### Offense data #####
+
+offense_season <- offense_weekly %>%
   group_by(player_id, player_display_name) %>%
   summarise(
-    position = position,
+    team = paste(unique(recent_team), collapse = ", "),
+    position = first(position),
     season = season,
     games_played = n(),
     completions = sum(completions, na.rm = TRUE),
@@ -153,12 +181,69 @@ season_stats <- weekly_data %>%
   distinct()
 
 
-##### combining old and new data #####
-season_stats_all <- rbind(season_stats_all, season_stats) %>%
+##### Kicking data #####
+kicking_season <- kicking_weekly %>%
+  group_by(player_id, player_display_name) %>% 
+  summarize(
+    games_played = n(),
+    position = first(position),
+    team = paste(unique(team), collapse = ", "), 
+    season = season,
+    position = position,
+    fg_made = sum(fg_made, na.rm = TRUE),
+    fg_att = sum(fg_att, na.rm = TRUE),
+    fg_pct = ifelse(fg_att == 0, NA, round((fg_made/fg_att) * 100)),
+    fg_blocked = sum(fg_blocked, na.rm = TRUE),
+    fg_long = ifelse(fg_made == 0, NA, max(fg_long, na.rm = TRUE)),
+    fg_made_0_19 = sum(fg_made_0_19, na.rm = TRUE),
+    fg_made_20_29 = sum(fg_made_20_29, na.rm = TRUE),
+    fg_made_30_39 = sum(fg_made_30_39, na.rm = TRUE),
+    fg_made_40_49 = sum(fg_made_40_49, na.rm = TRUE),
+    fg_made_50_59 = sum(fg_made_50_59, na.rm = TRUE),
+    `fg_made_60+` = sum(fg_made_60_, na.rm = TRUE),
+    fg_missed_0_19 = sum(fg_missed_0_19, na.rm = TRUE),
+    fg_missed_20_29 = sum(fg_missed_20_29, na.rm = TRUE),
+    fg_missed_30_39 = sum(fg_missed_30_39, na.rm = TRUE),
+    fg_missed_40_49 = sum(fg_missed_40_49, na.rm = TRUE),
+    fg_missed_50_59 = sum(fg_missed_50_59, na.rm = TRUE),
+    `fg_missed_60+` = sum(fg_missed_60_, na.rm = TRUE),
+    pat_made = sum(pat_made, na.rm = TRUE),
+    pat_att = sum(pat_att, na.rm = TRUE),
+    pat_blocked = sum(pat_blocked, na.rm = TRUE),
+    pat_pct = round((pat_made/pat_att)*100, 2),
+    gwfg_made = sum(gwfg_made, na.rm = TRUE),
+    total_kicking_points = ((fg_made * 3) + pat_made),
+    standard_points = sum(fantasy_points, na.rm = TRUE),
+    standard_ppg = ifelse(standard_points == 0, 0,round(mean(fantasy_points, na.rm = TRUE), 2)),
+    half_PPR_points = sum(fantasy_points, na.rm = TRUE),
+    half_PPR_ppg = ifelse(standard_points == 0, 0,round(mean(fantasy_points, na.rm = TRUE), 2)),
+    PPR_points = sum(fantasy_points, na.rm = TRUE),
+    PPR_ppg = ifelse(standard_points == 0, 0,round(mean(fantasy_points, na.rm = TRUE), 2))
+  ) %>%
   distinct()
 
-weekly_stats_all <- rbind(weekly_stats_all, weekly_data) %>%
-  distinct()
+
+########## combining old and new data ##########
+
+##### Standardizing column names #####
+all_columns_weekly <- union(names(offense_weekly), names(kicking_weekly))
+all_columns_season <- union(names(offense_season), names(kicking_season))
+
+# Add missing columns with NA values to each dataset
+offense_weekly[setdiff(all_columns_weekly, names(offense_weekly))] <- NA
+kicking_weekly[setdiff(all_columns_weekly, names(kicking_weekly))] <- NA
+offense_season[setdiff(all_columns_season, names(offense_season))] <- NA
+kicking_season[setdiff(all_columns_season, names(kicking_season))] <- NA
+
+# Ensure column order is the same
+offense_weekly <- offense_weekly[all_columns_weekly]
+kicking_weekly <- kicking_weekly[all_columns_weekly]
+offense_season <- offense_season[all_columns_season]
+kicking_season <- kicking_season[all_columns_season]
+
+# Now you can rbind()
+season_stats_all <- rbind(season_stats_all, offense_season, kicking_season) %>% distinct()
+weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly) %>% distinct()
 
 
 
@@ -169,8 +254,8 @@ weekly_stats_all <- rbind(weekly_stats_all, weekly_data) %>%
 
 
 ##### Update the workbook with new data #####
-writeData(wb, sheet = "Sheet1", season_stats_all)
-writeData(wb, sheet = "Sheet2", weekly_stats_all)
+writeData(wb, sheet = "Season", season_stats_all)
+writeData(wb, sheet = "Weekly", weekly_stats_all)
 
 
 saveWorkbook(wb, "ff_data.xlsx", overwrite = TRUE)
@@ -186,6 +271,19 @@ drive_upload(
   name = "ff_data.xlsx",
   type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+
+
+           
+
+
+
+
+
+
+
+
+
 
 
 
