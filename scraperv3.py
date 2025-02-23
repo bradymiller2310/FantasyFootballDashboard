@@ -1,0 +1,4 @@
+from espn_api.football import League
+
+league = League(league_id=1292514, year=2024, espn_s2="AECPNWyLvfnlcFfE0Xb73O%2BP5ZU9n1G%2FSnP3ixxvuqSwQRcQe7bEQfBuz3YBNeRluTYofdhX2aTajj0jZSF%2B8i9ewdk8Dwf6p9G215F2FjmI06wPKyhjleL4WzaT3PCiP15FDXe55YNMkQeJXgbsCuK1VHbdQ1Nxidq0JxAHezRn2zAt6WwNtSqrF0k2nNHV33VpJqPmMk4msFmaoCaz0UAp95xxy1YmXyEUnZWgA60HJkbsgYkZ8AaESwFENsPYdUvKYqCwnZLjvgI5varhOTDYekjvokdtaCoxJfzOdGLJ3g%3D%3D", swid="{D68FE5F2-46CE-421C-B248-DDA01360BB34}")
+print(league.teams)  # Example data
