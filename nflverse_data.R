@@ -1,5 +1,5 @@
 library(nflreadr);library(tidyverse);library(httr);library(jsonlite)
-library(dplyr);library(ffscrapr);library(googledrive);library(googlesheets4)
+library(dplyr);library(googledrive);library(googlesheets4)
 library(readr); library(openxlsx)
 
 ########## Reading in csv from google drive ##########
@@ -22,45 +22,10 @@ weekly_stats_all <- read.xlsx(wb, sheet = "Weekly")
 
 ##### removing all rows from current season so season metrics can be recalculated given this runs every week #####
 cur_year <- lubridate::year(Sys.Date())
-season_stats_all <- season_stats_all %>% filter(season != cur_year) %>% select(-X1)
-weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year) %>% select(-X1)
+#season_stats_all <- season_stats_all %>% filter(season != cur_year) %>% select(-X1)
+#weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year) %>% select(-X1)
 
 
-
-########## Scraping data from ESPN fantasy football league ##########
-
-# conn <- espn_connect(
-#   season = 2024,  # Replace with the desired season
-#   league_id = 609898,  # Replace with your league ID
-#   swid = "{B8AFA122-A403-4ED0-AFA1-22A4034ED037}",
-#   espn_s2 = "AECdBdbuiCM%2Bk03W5lSmfuJ1vEPhdwuH2FmEeuOdFlD3%2B7P%2BZnMZIaqZ77VE5O%2F4t%2BUyzgNuXK4nH5DMZC%2FCUfUTR72qsEWfN5ID4O1w%2FE6zs8mK0W5KTvKkx38XjDx8JudLVOrXTVSZYcIHkUiq6x3oQW%2B9n%2FoV28CkOcXHDlQsqqfa4s%2FvXdFlGAXWbSsN5OmpCmdB29g9efT0eVXo%2Fa8wpQ3AsLXBoWqBZTRRxlEuu8SgP44iuDn5LSuOKMjj3Fd9ltVfqNHhtkmYhz4P3OnP4OKqRE7%2Fbzi2OBt58gLxeI0vaiqO6BRpIhqhz4ly91k%3D"
-# )
-# 
-# 
-# rosters <- ff_rosters(conn)
-# ######################
-# test_url <- "https://fantasy.espn.com/apis/v3/games/ffl/seasons/2024/segments/0/leagues/609898?view=mTeam"
-# 
-# # Your authentication cookies (copy these exactly from browser)
-# espn_s2 <- "AECdBdbuiCM%2Bk03W5lSmfuJ1vEPhdwuH2FmEeuOdFlD3%2B7P%2BZnMZIaqZ77VE5O%2F4t%2BUyzgNuXK4nH5DMZC%2FCUfUTR72qsEWfN5ID4O1w%2FE6zs8mK0W5KTvKkx38XjDx8JudLVOrXTVSZYcIHkUiq6x3oQW%2B9n%2FoV28CkOcXHDlQsqqfa4s%2FvXdFlGAXWbSsN5OmpCmdB29g9efT0eVXo%2Fa8wpQ3AsLXBoWqBZTRRxlEuu8SgP44iuDn5LSuOKMjj3Fd9ltVfqNHhtkmYhz4P3OnP4OKqRE7%2Fbzi2OBt58gLxeI0vaiqO6BRpIhqhz4ly91k%3D"
-# swid <- "{B8AFA122-A403-4ED0-AFA1-22A4034ED037}"
-# 
-# # Make an authenticated request
-# test_response <- GET(
-#   test_url,
-#   set_cookies(
-#     SWID = swid,
-#     espn_s2 = espn_s2
-#   ),
-#   user_agent("Mozilla/5.0")  # Mimic a browser request
-# )
-# 
-# # Print response
-# print(test_response)
-# 
-# json_data <- content(test_response, "text", encoding = "UTF-8")
-# json_parsed <- jsonlite::fromJSON(json_data)
-# print(json_parsed)
 
 nflreadr::.clear_cache()
 
@@ -74,7 +39,10 @@ nflreadr::.clear_cache()
 #teams <- load_teams()
 
 # loading in fantasy football player ids (should make it easier to connect data)
-#ff_ids <- load_ff_playerids()
+ff_ids <- load_ff_playerids()
+
+ff_ids <- ff_ids %>% 
+  select(gsis_id, espn_id, name, age, height, weight, college)
 
 
 # loading in fantasy rankings
@@ -102,7 +70,7 @@ nflreadr::.clear_cache()
 ##### Offensive data #####
 
 # replace cur_year with 2024 to get data just to test on
-offense_weekly <- load_player_stats(seasons = c(2024)) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
+offense_weekly <- load_player_stats(seasons = c(2021,2022,2023,2024)) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
 
 # getting half ppr calculations
 offense_weekly <- offense_weekly %>%
@@ -111,7 +79,7 @@ offense_weekly <- offense_weekly %>%
 
 ##### Kicking data #####
 
-kicking <- load_player_stats(season = c(2024), stat_type = "kicking")
+kicking <- load_player_stats(season = c(2021,2022,2023,2024), stat_type = "kicking")
 
 # adding extra columns that are the same to help with lining up columns are all data
 kicking_weekly <- kicking %>%
@@ -124,11 +92,169 @@ kicking_weekly <- kicking %>%
   )
 
 ##### Defense data #####
-#defense_weekly<- load_player_stats(season = 2024, stat_type = "defense")
+defense_weekly <- load_player_stats(season = c(2021,2022, 2023, 2024), stat_type = "defense")
+
+kicking_by_game <- kicking_weekly %>%
+  mutate(kicking_points = case_when(
+    (is.na(fg_made) & is.na(pat_made)) ~ 0,
+    (is.na(fg_made) & !is.na(pat_made)) ~ pat_made,
+    (!is.na(fg_made) & is.na(pat_made)) ~ (3*fg_made),
+    TRUE ~ (fg_made * 3) + pat_made
+  ),
+  blocked_kicks = case_when(
+    (is.na(fg_blocked) & is.na(pat_blocked)) ~ 0,
+    (is.na(fg_blocked) & !is.na(pat_blocked)) ~ pat_blocked,
+    (!is.na(fg_blocked) & is.na(pat_blocked)) ~ fg_blocked,
+    TRUE ~ fg_blocked + pat_blocked)) %>%
+  select(player_id, player_display_name, season, week, kicking_points, blocked_kicks)
+  
+
+depth_charts <- load_depth_charts(seasons = c(2021,2022,2023,2024)) %>%
+  filter(position == "K" & game_type != "SBBYE") %>%
+  select(season, club_code, week, gsis_id, full_name) %>%
+  distinct()
+
+kicking <- kicking_by_game %>%
+  left_join(depth_charts, by = c("player_id" = "gsis_id", "season" = "season", "week" = "week")) %>% 
+  select(-full_name) %>%
+  filter(kicking_points > 0 | blocked_kicks > 0)
+
+# fixing team codes to allow for successful join
+kicking <- kicking %>%
+  mutate(
+    club_code = case_when(
+      (player_display_name == "Robbie Gould" & week %in% c(9,10) & season == 2021) ~ "SF",
+      (player_display_name == "Brett Maher" & week %in% c(11,13) & season == 2021) ~ "NO",
+      (player_display_name == "Cody Parkey" & week == 5 & season == 2021) ~ "WAS",
+      (player_display_name == "Bradley Pinion" & week == 5 & season == 2021) ~ "TB",
+      (player_display_name == "Ka'imi Fairbairn" & week == 17 & season == 2021) ~ "HOU",
+      (player_display_name == "Aldrick Rosas" & week == 11 & season == 2021) ~ "DET",
+      (player_display_name == "Harrison Butker" & week == 17 & season == 2021) ~ "KC",
+      (player_display_name == "Zane Gonzalez" & week == 2 & season == 2021) ~ "CAR",
+      (player_display_name == "Michael Badgley" & week == 6 & season == 2021) ~ "IND",
+      (player_display_name == "Eddy Pineiro" & week == 14 & season == 2021) ~ "NYJ",
+      (player_display_name == "Ryan Santoso" & week == 3 & season == 2021) ~ "DET",
+      (player_display_name == "Chris Blewitt" & week == 7 & season == 2021) ~ "WAS",
+      (player_display_name == "Elliot Fry" & week == 16 & season == 2021) ~ "PIT",
+      (player_display_name == "Elliot Fry" & week == 18 & season == 2021) ~ "CLE",
+      (player_display_name == "Mitch Wishnowsky" & week == 4 & season == 2021) ~ "SF",
+      (player_display_name == "Austin Seibert" & week == 5 & season == 2021) ~ "DET",
+      (player_display_name == "Matthew Wright" & week %in% c(4,5,6) & season == 2021) ~ "JAX",
+      (player_display_name == "Joey Slye" & week == 5 & season == 2021) ~ "SF",
+      (player_display_name == "Joey Slye" & week == 16 & season == 2021) ~ "WAS",
+      (player_display_name == "Chase McLaughlin" & week == 17 & season == 2021) ~ "CLE",
+      (player_display_name == "Lirim Hajrullahu" & week == 10 & season == 2021) ~ "DAL",
+      (player_display_name == "Lirim Hajrullahu" & week == 16 & season == 2021) ~ "CAR",
+      (player_display_name == "Dominik Eberle" & week == 16 & season == 2021) ~ "HOU",
+      (player_display_name == "Randy Bullock" & week == 2 & season == 2021) ~ "TEN",
+      (player_display_name == "Greg Zuerlein" & week == 11 & season == 2021) ~ "DAL",
+      (player_display_name == "Chris Naggar" & week == 16 & season == 2021) ~ "CLE",
+      (player_display_name == "Brian Johnson" & week %in% c(13,14) & season == 2021) ~ "WAS",
+      (player_display_name == "Matt Prater" & week == 11 & season == 2022) ~ "ARI",
+      (player_display_name == "Mason Crosby" & week %in% c(1,2) & season == 2022) ~ "GB",
+      (player_display_name == "Chris Boswell" & week == 14 & season == 2022) ~ "PIT",
+      (player_display_name == "Josh Lambo" & week == 11 & season == 2022) ~ "TEN",
+      (player_display_name == "Taylor Bertolet" & week %in% c(5,7) & season == 2022) ~ "LAC",
+      (player_display_name == "Michael Badgley" & week == 4 & season == 2022) ~ "CHI",
+      (player_display_name == "Justin Reid" & week == 1 & season == 2022) ~ "KC",
+      (player_display_name == "Tristan Vizcaino" & week == 10 & season == 2022) ~ "ARI",
+      (player_display_name == "Mitch Wishnowsky" & week == 5 & season == 2022) ~ "SF",
+      (player_display_name == "Matthew Wright" & week %in% c(4,5) & season == 2022) ~ "KC",
+      (player_display_name == "Matthew Wright" & week %in% c(10,11,12) & season == 2022) ~ "PIT",
+      (player_display_name == "Dominik Eberlie" & week == 4 & season == 2022) ~ "DET",
+      (player_display_name == "Matt Ammendola" & week == 2 & season == 2022) ~ "KC",
+      (player_display_name == "Matt Ammendola" & week %in% c(5,6) & season == 2022) ~ "ARI",
+      (player_display_name == "Cameron Dicker" & week == 5 & season == 2022) ~ "PHI",
+      (player_display_name == "Cameron Dicker" & week %in% c(9,10,11,12) & season == 2022) ~ "LAC",
+      (player_display_name == "Caleb Shudak" & week == 12 & season == 2022) ~ "TEN",
+      (player_display_name == "Nick Sciba" & week == 8 & season == 2022) ~ "PIT",
+      (player_display_name == "Mason Crosby" & week == 16 & season == 2023) ~ "NYG",
+      (player_display_name == "Randy Bullock" & week %in% c(10,11,12) & season == 2023) ~ "NYG",
+      (player_display_name == "Ka'imi Fairbairn" & week %in% c(15,16,17,18) & season == 2023) ~ "HOU",
+      (player_display_name == "Dare Ogunbowale" & week == 9 & season == 2023) ~ "HOU",
+      (player_display_name == "Mike Badgley" & week %in% c(15,16) & season == 2023) ~ "DET",
+      (player_display_name == "Jamie Gillan" & week == 15 & season == 2023) ~ "NYG",
+      (player_display_name == "Austin Seibert" & week == 2 & season == 2023) ~ "NYJ",
+      (player_display_name == "Matt Ammendola" & week %in% c(10,11,12,13) & season == 2023) ~ "HOU",
+      (player_display_name == "Riley Patterson" & week %in% c(17,18,19) & season == 2023) ~ "CLE",
+      (player_display_name == "Cameron Dicker" & week %in% c(1,2) & season == 2023) ~ "LAC",
+      (player_display_name == "Lucas Havrisik" & week %in% c(8,9) & season == 2023) ~ "LA",
+      (player_display_name == "Graham Gano" & week == 10 & season == 2024) ~ "NYG",
+      (player_display_name == "Brandon McManus" & week == 7 & season == 2024) ~ "GB",
+      (player_display_name == "Harrison Butker" & week %in% c(15,16) & season == 2024) ~ "KC",
+      (player_display_name == "Zane Gonzalez" & week %in% c(10,13,16) & season == 2024) ~ "WAS",
+      (player_display_name == "Greg Joseph" & week %in% c(3,4) & season == 2024) ~ "NYJ",
+      (player_display_name == "Mitch Wishnowsky" & week == 5 & season == 2024) ~ "SF",
+      (player_display_name == "Austin Seibert" & week == 2 & season == 2024) ~ "WAS",
+      (player_display_name == "Matthew Wright" & week == 6 & season == 2024) ~ "SF",
+      (player_display_name == "Matthew Wright" & week == 13 & season == 2024) ~ "KC",
+      (player_display_name == "Matthew Wright" & week %in% c(17,18) & season == 2024) ~ "TEN",
+      (player_display_name == "Riley Patterson" & week == 9 & season == 2024) ~ "NYG",
+      (player_display_name == "Riley Patterson" & week == 15 & season == 2024) ~ "CLE",
+      (player_display_name == "Riley Patterson" & week %in% c(16,17) & season == 2024) ~ "ATL",
+      (player_display_name == "John Parker Romo" & week %in% c(11,12,13) & season == 2024) ~ "MIN",
+      (player_display_name == "Cade York" & week %in% c(14,15,16,17,18) & season == 2024) ~ "CIN",
+      (player_display_name == "Adners Carlson" & week == 11 & season == 2024) ~ "NYJ",
+      (player_display_name == "Anders Carlson" & week %in% c(7,8) & season == 2024) ~ "SF",
+      (player_display_name == "Chad Ryland" & week %in% c(5,6,7) & season == 2024) ~ "ARI",
+      (player_display_name == "Will Reichard" & week == 14 & season == 2024) ~ "MIN",
+      (player_display_name == "Spencer Shrader" & week == 10 & season == 2024) ~ "NYJ",
+      (player_display_name == "Spencer Shrader" & week %in% c(11,12) & season == 2024) ~ "KC",
+      (player_display_name == "Brayden Narveson" & week == 16 & season == 2024) ~ "TEN",
+      (player_display_name == "Jude McAtamney" & week == 9 & season == 2024) ~ "NYG",
+      TRUE ~ club_code
+    )
+)
+
+yards_tds <- offense_weekly %>%
+  group_by(season, week, recent_team) %>%
+  summarize(
+    opponent = first(opponent_team),
+    total_yards = sum(passing_yards + rushing_yards, na.rm = TRUE),
+    total_tds = sum(passing_tds + rushing_tds, na.rm = TRUE),
+    interceptions = sum(interceptions, na.rm = TRUE),
+    fumbles_recovered = sum(sack_fumbles_lost + rushing_fumbles_lost + receiving_fumbles_lost, na.rm = TRUE)
+  )
+
+all_defense_weekly <- yards_tds %>% 
+  left_join(kicking, by = c("season", "week", "opponent" = "club_code"))
+
+defense_weekly <- defense_weekly %>%
+  group_by(season, week, team) %>% 
+  summarize(df_tds = sum(def_tds, na.rm = TRUE),
+            sacks = sum(def_sacks, na.rm = TRUE))
+
+all_defense_weekly <- all_defense_weekly %>%
+  select(-c(recent_team, player_id, player_display_name)) %>%
+  rename("team" = "opponent") %>%
+  left_join(defense_weekly, by = c("season", "week", "team"))
 
 
-
-
+all_defense_weekly <- all_defense_weekly %>%
+  mutate(total_points_allowed = (total_tds * 6) + kicking_points,
+         yards_points = case_when(
+           total_yards < 100 ~ 5,
+           total_yards >= 100 & total_yards < 200 ~ 3,
+           total_yards >= 200 & total_yards < 300 ~ 2,
+           total_yards >= 300 & total_yards < 400 ~ -1,
+           total_yards >= 400 & total_yards < 450 ~ -3,
+           total_yards >= 450 & total_yards < 500 ~ -5,
+           total_yards >= 500 & total_yards < 560 ~ -6,
+           total_yards >= 550 ~ -7
+         ),
+         points_fp = case_when(
+           total_points_allowed == 0 ~ 5,
+           total_points_allowed > 0 & total_points_allowed < 7 ~ 4,
+           total_points_allowed >= 7 & total_points_allowed < 14 ~ 3,
+           total_points_allowed >= 14 & total_points_allowed < 18 ~ 1,
+           total_points_allowed >= 18 & total_points_allowed < 28 ~ 0,
+           total_points_allowed >= 28 & total_points_allowed < 35 ~ -1,
+           total_points_allowed >= 35 & total_points_allowed < 46 ~ -3,
+           total_points_allowed >= 46 ~ -5,
+         ))
+  
+defense_points_weekly <- all_defense_weekly %>%
+  mutate(fantasy_points = yards_points + points_fp + (2*interceptions) + (2*fumbles_recovered) + (2*blocked_kicks)+ (6*df_tds) + sacks)
 ########## Creating season totals ##########
 
 
@@ -247,6 +373,16 @@ weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly) %>% 
 
 
 
+########## Joining with ff_ids ##########
+season_stats_all <- rbind(offense_season, kicking_season) %>% distinct()
+weekly_stats_all <- rbind(offense_weekly, kicking_weekly) %>% distinct()
+
+season_stats_all <- season_stats_all %>% 
+  left_join(ff_ids, by = c("player_id" = "gsis_id"))
+
+weekly_stats_all <- weekly_stats_all %>% 
+  left_join(ff_ids, by = c("player_id" = "gsis_id"))
+
 ########## Uploading data back to google sheets ##########
 # Adding new sheets if necessary
 # Add a worksheet (if it doesn’t exist)
@@ -273,10 +409,10 @@ drive_upload(
 )
 
 
-
-           
-
-
+####  TAKE ff_ids #####
+# select gsis_id, espn_id and player name, age, draft_rd, draft_pick, draft_ovr
+# join gsis id in ff_ids with gsis_id in data tables
+# then with the data from ESPN FF, then we can assign the weekly points/season totals to each player
 
 
 
