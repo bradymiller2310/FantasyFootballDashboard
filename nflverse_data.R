@@ -30,10 +30,10 @@ cur_year <- lubridate::year(Sys.Date())
 nflreadr::.clear_cache()
 
 # loading in play by play data from 2021-2024
-#pbp2024 <- load_pbp(2024)
-#pbp2023 <- load_pbp(2023)
-#pbp2022 <- load_pbp(2022)
-#pbp2021 <- load_pbp(2021)
+pbp2024 <- load_pbp(2024)
+pbp2023 <- load_pbp(2023)
+pbp2022 <- load_pbp(2022)
+pbp2021 <- load_pbp(2021)
 
 # loading in teams (could use for logos on dashboard)
 #teams <- load_teams()
@@ -50,18 +50,18 @@ ff_ids <- ff_ids %>%
 #ff_rankings <- load_ff_rankings()
 
 
-# loading in injury data from 2021-2024
-#injuries2024 <- load_injuries(2024)
-#injuries2023 <- load_injuries(2023)
-#injuries2022 <- load_injuries(2022)
-#injuries2021 <- load_injuries(2021)
+
+depth_charts <- load_depth_charts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+  filter(depth_position %in% c("QB", "RB", "TE", "WR")) %>%
+  mutate(depth_pos = paste(depth_position, depth_team, sep = "-")) %>%
+  select(depth_pos, season, week, gsis_id)
 
 
-#depth_charts <- load_depth_charts() %>%
-#  filter(position %in% c("K", "QB", "RB", "TE", "WR"))
+snap_counts <- load_snap_counts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+  filter(position %in% c("QB", "RB", "TE", "WR")) %>%
+  select(season, week, player, team, position, offense_snaps, offense_pct, opponent)
 
 
-#NextGenStats <- load_nextgen_stats() %>% filter(season > 2020)
 
 ##############################################################
 
@@ -76,10 +76,16 @@ offense_weekly <- load_player_stats(seasons = c(2021,2022,2023,2024)) %>% filter
 offense_weekly <- offense_weekly %>%
   mutate(half_PPR = (passing_yards * 0.04) + (passing_tds * 4) + (rushing_yards * 0.1) + (rushing_tds * 6) + (receptions * 0.5) + (receiving_yards * 0.1) + (receiving_tds * 6) + ((rushing_fumbles_lost + sack_fumbles_lost + receiving_fumbles_lost + interceptions) * -2) + ((passing_2pt_conversions + rushing_2pt_conversions + receiving_2pt_conversions)*2)) 
 
+offense_weekly <- offense_weekly %>%
+  left_join(depth_charts, by = c("player_id" = "gsis_id", "week", "season"))
+
+offense_weekly <- offense_weekly %>%
+  left_join(snap_counts, by = c("season", "week", "position", "opponent_team" = "opponent", "player_display_name" = "player", "recent_team" = "team")) 
+
 
 ##### Kicking data #####
 
-kicking <- load_player_stats(season = c(2021,2022,2023,2024), stat_type = "kicking")
+kicking <- load_player_stats(seasons = c(2021,2022,2023,2024), stat_type = "kicking")
 
 # adding extra columns that are the same to help with lining up columns are all data
 kicking_weekly <- kicking %>%
@@ -92,7 +98,7 @@ kicking_weekly <- kicking %>%
   )
 
 ##### Defense data #####
-defense_weekly <- load_player_stats(season = c(2021,2022, 2023, 2024), stat_type = "defense")
+defense_weekly <- load_player_stats(seasons = c(2021,2022, 2023, 2024), stat_type = "defense")
 
 kicking_by_game <- kicking_weekly %>%
   mutate(kicking_points = case_when(
@@ -252,16 +258,74 @@ all_defense_weekly <- all_defense_weekly %>%
            total_points_allowed >= 35 & total_points_allowed < 46 ~ -3,
            total_points_allowed >= 46 ~ -5,
          ))
-  
-defense_points_weekly <- all_defense_weekly %>%
-  mutate(fantasy_points = yards_points + points_fp + (2*interceptions) + (2*fumbles_recovered) + (2*blocked_kicks)+ (6*df_tds) + sacks)
-########## Creating season totals ##########
 
+
+pbp2024_tds <- pbp2024 %>%
+  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+  select(season, week, td_team)
+
+pbp2023_tds <- pbp2023 %>%
+  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+  select(season, week, td_team)
+
+pbp2022_tds <- pbp2022 %>%
+  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+  select(season, week, td_team)
+
+pbp2021_tds <- pbp2021 %>%
+  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+  select(season, week, td_team)
+
+pbp_tds <- rbind(pbp2024_tds, pbp2023_tds, pbp2022_tds, pbp2021_tds)
+
+pbp_tds <- pbp_tds %>%
+  group_by(season, week, td_team) %>%
+  summarize(st_tds = n())
+
+
+all_defense_weekly <- all_defense_weekly %>%
+  left_join(pbp_tds, by = c("season", "week", "team" = "td_team"))
+
+all_defense_weekly[is.na(all_defense_weekly)] <- 0
+
+  
+defense_weekly <- all_defense_weekly %>%
+  mutate(fantasy_points = yards_points + points_fp + (2*interceptions) + (2*fumbles_recovered) + (2*blocked_kicks)+ (6*df_tds) + sacks + (6*st_tds))
+########## Creating season totals ##########
+defense_season <- defense_weekly %>%
+  group_by(season, team) %>%
+  summarise(
+    total_yards = sum(total_yards, na.rm = TRUE),
+    avg_ypg_allowed = round(sum(total_yards, na.rm = TRUE)/n(), 2),
+    total_points = sum(total_points_allowed, na.rm = TRUE),
+    avg_ppg_allowed = round(sum(total_points_allowed, na.rm = TRUE)/n(), 2),
+    total_int = sum(interceptions, na.rm = TRUE),
+    int_pg = round(sum(interceptions, na.rm = TRUE)/n(), 2),
+    total_fumbles = sum(fumbles_recovered, na.rm = TRUE),
+    fumbles_pg = round(sum(fumbles_recovered, na.rm = TRUE)/n(), 2),
+    total_blocked_kicks = sum(blocked_kicks, na.rm = TRUE),
+    blocked_kicks_pg = round(sum(blocked_kicks, na.rm = TRUE)/n(), 2),
+    total_def_tds = sum(df_tds, na.rm = TRUE),
+    df_tds_pg = round(sum(df_tds, na.rm = TRUE)/n(), 2),
+    total_sacks = sum(sacks, na.rm = TRUE),
+    sacks_pg = round(sum(sacks, na.rm = TRUE)/n(), 2),
+    total_st_tds = sum(st_tds, na.rm = TRUE),
+    st_tds_pg = round(sum(st_tds, na.rm = TRUE)/n(), 2),
+    total_fp = sum(fantasy_points, na.rm = TRUE),
+    fp_pg = round(sum(fantasy_points, na.rm = TRUE)/n(), 2)
+  )
+
+opponent_defense <- defense_season %>%
+  select(season, team, avg_ypg_allowed, avg_ppg_allowed, int_pg, fumbles_pg, df_tds_pg, sacks_pg) %>%
+  rename_with(~ paste0("opp_", .), -c(season, team))
+
+offense_weekly <- offense_weekly %>%
+  left_join(opponent_defense, by = c("opponent_team" = "team", "season"))
 
 ##### Offense data #####
 
 offense_season <- offense_weekly %>%
-  group_by(player_id, player_display_name) %>%
+  group_by(season, player_id, player_display_name) %>%
   summarise(
     team = paste(unique(recent_team), collapse = ", "),
     position = first(position),
@@ -302,14 +366,16 @@ offense_season <- offense_weekly %>%
     half_PPR_points = sum(half_PPR, na.rm = TRUE),
     half_PPR_ppg = round(mean(half_PPR_points, na.rm = TRUE), 2),
     PPR_points = sum(fantasy_points_ppr, na.rm = TRUE),
-    PPR_ppg = round(mean(fantasy_points_ppr, na.rm = TRUE),2)
+    PPR_ppg = round(mean(fantasy_points_ppr, na.rm = TRUE),2),
+    avg_off_snaps = round(mean(offense_snaps, na.rm = TRUE), 2),
+    avg_off_snap_pct = round(mean(offense_pct, na.rm = TRUE), 2)
   ) %>% 
   distinct()
 
 
 ##### Kicking data #####
 kicking_season <- kicking_weekly %>%
-  group_by(player_id, player_display_name) %>% 
+  group_by(season, player_id, player_display_name) %>% 
   summarize(
     games_played = n(),
     position = first(position),
@@ -352,30 +418,56 @@ kicking_season <- kicking_weekly %>%
 ########## combining old and new data ##########
 
 ##### Standardizing column names #####
-all_columns_weekly <- union(names(offense_weekly), names(kicking_weekly))
-all_columns_season <- union(names(offense_season), names(kicking_season))
+all_columns_weekly <- union(names(offense_weekly), union(names(kicking_weekly), names(defense_weekly)))
+all_columns_season <- union(names(offense_season), union(names(kicking_season), names(defense_season)))
 
 # Add missing columns with NA values to each dataset
 offense_weekly[setdiff(all_columns_weekly, names(offense_weekly))] <- NA
 kicking_weekly[setdiff(all_columns_weekly, names(kicking_weekly))] <- NA
+defense_weekly[setdiff(all_columns_weekly, names(defense_weekly))] <- NA
 offense_season[setdiff(all_columns_season, names(offense_season))] <- NA
 kicking_season[setdiff(all_columns_season, names(kicking_season))] <- NA
+defense_season[setdiff(all_columns_season, names(defense_season))] <- NA
 
 # Ensure column order is the same
 offense_weekly <- offense_weekly[all_columns_weekly]
 kicking_weekly <- kicking_weekly[all_columns_weekly]
+defense_weekly <- defense_weekly[all_columns_weekly]
 offense_season <- offense_season[all_columns_season]
 kicking_season <- kicking_season[all_columns_season]
+defense_season <- defense_season[all_columns_season]
 
 # Now you can rbind()
-season_stats_all <- rbind(season_stats_all, offense_season, kicking_season) %>% distinct()
-weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly) %>% distinct()
+season_stats_all <- rbind(season_stats_all, offense_season, kicking_season, defense_season) %>% distinct()
+weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
 
 
 
 ########## Joining with ff_ids ##########
-season_stats_all <- rbind(offense_season, kicking_season) %>% distinct()
-weekly_stats_all <- rbind(offense_weekly, kicking_weekly) %>% distinct()
+season_stats_all <- rbind(offense_season, kicking_season, defense_season) %>% distinct()
+weekly_stats_all <- rbind(offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
+
+
+
+# adding new row to ff_ids for defenses
+new_row <- data.frame(
+  gsis_id = "defense",
+  espn_id = NA,
+  name = NA,
+  age = NA,
+  height = NA, 
+  weight = NA,
+  college = NA
+)
+
+ff_ids <- bind_rows(ff_ids, new_row)
+
+# adding "defense" to player id in season and weekly data for joining purposes
+season_stats_all$player_id[is.na(season_stats_all$player_id)] <- "defense"
+weekly_stats_all$player_id[is.na(weekly_stats_all$player_id)] <- "defense"
+
+
+
 
 season_stats_all <- season_stats_all %>% 
   left_join(ff_ids, by = c("player_id" = "gsis_id"))
@@ -385,9 +477,7 @@ weekly_stats_all <- weekly_stats_all %>%
 
 ########## Uploading data back to google sheets ##########
 # Adding new sheets if necessary
-# Add a worksheet (if it doesn’t exist)
-#addWorksheet(wb, "Sheet1")
-
+# Add a worksheet (if it doesnb
 
 ##### Update the workbook with new data #####
 writeData(wb, sheet = "Season", season_stats_all)
@@ -413,13 +503,3 @@ drive_upload(
 # select gsis_id, espn_id and player name, age, draft_rd, draft_pick, draft_ovr
 # join gsis id in ff_ids with gsis_id in data tables
 # then with the data from ESPN FF, then we can assign the weekly points/season totals to each player
-
-
-
-
-
-
-
-
-
-
