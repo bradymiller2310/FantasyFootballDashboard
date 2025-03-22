@@ -420,6 +420,9 @@ kicking_season <- kicking_weekly %>%
 ##### Standardizing column names #####
 all_columns_weekly <- union(names(offense_weekly), union(names(kicking_weekly), names(defense_weekly)))
 all_columns_season <- union(names(offense_season), union(names(kicking_season), names(defense_season)))
+#all_columns_weekly <- union(names(offense_weekly), names(kicking_weekly))
+#all_columns_season <- union(names(offense_season), names(kicking_season))
+
 
 # Add missing columns with NA values to each dataset
 offense_weekly[setdiff(all_columns_weekly, names(offense_weekly))] <- NA
@@ -444,8 +447,10 @@ defense_season <- defense_season[all_columns_season]
 
 
 ########## Joining with ff_ids ##########
-season_stats_all <- rbind(offense_season, kicking_season, defense_season) %>% distinct()
-weekly_stats_all <- rbind(offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
+season_stats_all <- rbind(offense_season, kicking_season, defense_season) %>% 
+  distinct()
+weekly_stats_all <- rbind(offense_weekly, kicking_weekly, defense_weekly) %>% 
+  distinct()
 
 
 
@@ -476,11 +481,6 @@ weekly_stats_all <- weekly_stats_all %>%
   left_join(ff_ids, by = c("player_id" = "gsis_id"))
 
 
-weekly_stats_all <- weekly_stats_all %>% 
-  mutate(across(everything(), as.character))
-
-season_stats_all <- season_stats_all %>% 
-  mutate(across(everything(), as.character))
 
 ########## Adding espn_ids for defenses to allow for joining in other code ##########
 weekly_stats_all <- weekly_stats_all %>%
@@ -559,6 +559,7 @@ season_stats_all <- season_stats_all %>%
   ))
 
 
+
 ########## Uploading data back to google sheets ##########
 # Adding new sheets if necessary
 # Add a worksheet (if it doesnb
@@ -587,3 +588,23 @@ drive_upload(
 # select gsis_id, espn_id and player name, age, draft_rd, draft_pick, draft_ovr
 # join gsis id in ff_ids with gsis_id in data tables
 # then with the data from ESPN FF, then we can assign the weekly points/season totals to each player
+
+
+
+
+# Create a new workbook
+wb <- createWorkbook()
+
+# Add worksheets
+addWorksheet(wb, sheetName = "Season")
+addWorksheet(wb, sheetName = "Weekly")
+
+# Write data to sheets
+writeData(wb, sheet = "Season", x = season_stats_all)
+writeData(wb, sheet = "Weekly", x = weekly_stats_all)
+
+# Define your download path (adjust if not Windows or macOS)
+download_path <- file.path("C:/Senior/Spring/DS 440", "ff_data_test.xlsx")
+
+# Save workbook
+saveWorkbook(wb, file = download_path, overwrite = TRUE)
