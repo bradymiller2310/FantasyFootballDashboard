@@ -438,8 +438,8 @@ kicking_season <- kicking_season[all_columns_season]
 defense_season <- defense_season[all_columns_season]
 
 # Now you can rbind()
-season_stats_all <- rbind(season_stats_all, offense_season, kicking_season, defense_season) %>% distinct()
-weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
+#season_stats_all <- rbind(season_stats_all, offense_season, kicking_season, defense_season) %>% distinct()
+#weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
 
 
 
@@ -474,6 +474,90 @@ season_stats_all <- season_stats_all %>%
 
 weekly_stats_all <- weekly_stats_all %>% 
   left_join(ff_ids, by = c("player_id" = "gsis_id"))
+
+
+weekly_stats_all <- weekly_stats_all %>% 
+  mutate(across(everything(), as.character))
+
+season_stats_all <- season_stats_all %>% 
+  mutate(across(everything(), as.character))
+
+########## Adding espn_ids for defenses to allow for joining in other code ##########
+weekly_stats_all <- weekly_stats_all %>%
+  mutate(espn_id = case_when(
+    (team == "DEN" & player_id == "defense")~ "-16007", 
+    (team == "BUF" & player_id == "defense") ~ "-16002", 
+    (team == "CHI" & player_id == "defense") ~ "-16003", 
+    (team == "NYJ" & player_id == "defense")~ "-16020",
+    (team == "MIA" & player_id == "defense")~ "-16006", 
+    (team == "DAL" & player_id == "defense")~ "-16015",
+    (team == "LAC" & player_id == "defense")~ "-16024",
+    (team == "MIN" & player_id == "defense")~ "-16016",
+    (team == "BAL" & player_id == "defense")~ "-16033", 
+    (team == "KC" & player_id == "defense")~ "-16012",
+    (team == "DET" & player_id == "defense")~ "-16008", 
+    (team == "GB" & player_id == "defense")~ "-16009", 
+    (team == "TB" & player_id == "defense")~ "-16027",
+    (team == "PHI" & player_id == "defense")~ "-16021", 
+    (team == "IND" & player_id == "defense")~ "-16011",
+    (team == "PIT" & player_id == "defense")~ "-16023", 
+    (team == "SF" & player_id == "defense")~ "-16025", 
+    (team == "HOU" & player_id == "defense")~ "-16034", 
+    (team == "CIN" & player_id == "defense")~ "-16004", 
+    (team == "WAS" & player_id == "defense")~ "-16028", 
+    (team == "NO" & player_id == "defense")~ "-16018", 
+    (team == "ARI" & player_id == "defense")~ "-16022", 
+    (team == "CLE" & player_id == "defense")~ "-16005",
+    (team == "ATL" & player_id == "defense")~ "-16001", 
+    (team == "SEA" & player_id == "defense")~ "-16026", 
+    (team == "TEN" & player_id == "defense")~ "-16010",
+    (team == "JAX" & player_id == "defense")~ "-16030", 
+    (team == "LV" & player_id == "defense")~ "-16013", 
+    (team == "LA" & player_id == "defense")~ "-16014",
+    (team == "NYG" & player_id == "defense")~ "-16019", 
+    (team == "NE" & player_id == "defense")~ "-16017",
+    (team == "CAR" & player_id == "defense")~ "-16029",
+    TRUE ~ espn_id
+  ))
+
+
+season_stats_all <- season_stats_all %>%
+  mutate(espn_id = case_when(
+    (team == "DEN" & player_id == "defense") ~ "-16007", 
+    (team == "BUF" & player_id == "defense") ~ "-16002", 
+    (team == "CHI" & player_id == "defense") ~ "-16003", 
+    (team == "NYJ" & player_id == "defense") ~ "-16020",
+    (team == "MIA" & player_id == "defense") ~ "-16006", 
+    (team == "DAL" & player_id == "defense") ~ "-16015",
+    (team == "LAC" & player_id == "defense") ~ "-16024",
+    (team == "MIN" & player_id == "defense") ~ "-16016",
+    (team == "BAL" & player_id == "defense") ~ "-16033", 
+    (team == "KC" & player_id == "defense") ~ "-16012",
+    (team == "DET" & player_id == "defense") ~ "-16008", 
+    (team == "GB" & player_id == "defense") ~ "-16009", 
+    (team == "TB" & player_id == "defense") ~ "-16027",
+    (team == "PHI" & player_id == "defense") ~ "-16021", 
+    (team == "IND" & player_id == "defense") ~ "-16011",
+    (team == "PIT" & player_id == "defense") ~ "-16023", 
+    (team == "SF" & player_id == "defense") ~ "-16025", 
+    (team == "HOU" & player_id == "defense")  ~ "-16034", 
+    (team == "CIN" & player_id == "defense") ~ "-16004", 
+    (team == "WAS" & player_id == "defense") ~ "-16028", 
+    (team == "NO" & player_id == "defense") ~ "-16018", 
+    (team == "ARI" & player_id == "defense") ~ "-16022", 
+    (team == "CLE" & player_id == "defense") ~ "-16005",
+    (team == "ATL" & player_id == "defense") ~ "-16001", 
+    (team == "SEA" & player_id == "defense") ~ "-16026", 
+    (team == "TEN" & player_id == "defense") ~ "-16010",
+    (team == "JAX" & player_id == "defense") ~ "-16030", 
+    (team == "LV" & player_id == "defense") ~ "-16013", 
+    (team == "LA" & player_id == "defense") ~ "-16014",
+    (team == "NYG" & player_id == "defense") ~ "-16019", 
+    (team == "NE" & player_id == "defense") ~ "-16017",
+    (team == "CAR" & player_id == "defense") ~ "-16029",
+    TRUE ~ espn_id
+  ))
+
 
 ########## Uploading data back to google sheets ##########
 # Adding new sheets if necessary
