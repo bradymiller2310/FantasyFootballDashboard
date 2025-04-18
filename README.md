@@ -88,7 +88,7 @@ Follow the steps below to get started with creating your own fantasy football da
    - League id: this can be found by going to your fantasy football league page and in the URL, copying the numbers after "LeagueId="
    - year: this is simply the year in which the NFL started. So for the 2024-2025 season, you would use the value 2024
    - espn_s2 & swid: to get these, when you are on the fantasy football page, right click and select "Inspect". Go to the application tab, and under the "Cookies" section on the left select the tab for fantasy.espn.com. In the table that appears find "espn_s2" and "swid" under the name column and and copy and paste the text in the value column next to each name into the appropriate spot in the function in that 3rd code chunk
-   **_This only has to be done the first time_
+   - **_This step only has to be done the first time_
 
 7) Download Tableau Public via the following link (https://www.tableau.com/support/releases/desktop/2024.3) & create a Tableau Public account.
 
