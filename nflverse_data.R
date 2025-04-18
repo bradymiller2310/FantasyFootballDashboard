@@ -3,14 +3,16 @@ library(dplyr);library(googledrive);library(googlesheets4)
 library(readr); library(openxlsx)
 
 ########## Reading in csv from google drive ##########
+# Selecting and authenticating the google drive account you want to pull the excel file from
 drive_auth(use_oob = TRUE)
 
+# reading in excel file from 
+file <- drive_get("ff_data.xlsx")
 
-file <- drive_get("ff_data.xlsx")  # Replace with your actual filename
+temp_file <- tempfile(fileext = ".xlsx")
 
-temp_file <- tempfile(fileext = ".xlsx")  # Create a temporary file path
-
-drive_download(file, path = temp_file, overwrite = TRUE)  # Download the file
+# downloading the file
+drive_download(file, path = temp_file, overwrite = TRUE)
 
 # Load the Excel file into R
 wb <- loadWorkbook(temp_file)  # Open the workbook
@@ -21,22 +23,27 @@ weekly_stats_all <- read.xlsx(wb, sheet = "Weekly")
 
 
 ##### removing all rows from current season so season metrics can be recalculated given this runs every week #####
-cur_year <- lubridate::year(Sys.Date())
-#season_stats_all <- season_stats_all %>% filter(season != cur_year) %>% select(-X1)
-#weekly_stats_all <- weekly_stats_all %>% filter(season != cur_year) %>% select(-X1)
+cur_season <- 2024 # This needs to be updated at the start of each season
+
+##### Uncomment lines 30 & 31 out when running on a weekly basis#####
+
+season_stats_all <- season_stats_all %>% filter(season != cur_season) 
+weekly_stats_all <- weekly_stats_all %>% filter(season != cur_season) 
 
 
 
 nflreadr::.clear_cache()
 
+##### Run lines 39-42 if running the script for the first time #####
 # loading in play by play data from 2021-2024
-pbp2024 <- load_pbp(2024)
-pbp2023 <- load_pbp(2023)
-pbp2022 <- load_pbp(2022)
-pbp2021 <- load_pbp(2021)
+#pbp2024 <- load_pbp(2024)
+#pbp2023 <- load_pbp(2023)
+#pbp2022 <- load_pbp(2022)
+#pbp2021 <- load_pbp(2021)
 
-# loading in teams (could use for logos on dashboard)
-#teams <- load_teams()
+
+##### Run this line when running on a weekly basis (gets data from only this season) #####
+pbp_cur_season <- load_pbp(cur_season)
 
 # loading in fantasy football player ids (should make it easier to connect data)
 ff_ids <- load_ff_playerids()
@@ -45,22 +52,27 @@ ff_ids <- ff_ids %>%
   select(gsis_id, espn_id, name, age, height, weight, college)
 
 
-# loading in fantasy rankings
-# their ID is the same as fantasypros_id in ff_ids
-#ff_rankings <- load_ff_rankings()
 
+# uncomment this out if running script for the first time
+#depth_charts <- load_depth_charts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+#  filter(depth_position %in% c("QB", "RB", "TE", "WR")) %>%
+#  mutate(depth_pos = paste(depth_position, depth_team, sep = "-")) %>%
+#  select(depth_pos, season, week, gsis_id)
 
-
-depth_charts <- load_depth_charts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+depth_charts <- load_depth_charts(seasons =  cur_season) %>%
   filter(depth_position %in% c("QB", "RB", "TE", "WR")) %>%
   mutate(depth_pos = paste(depth_position, depth_team, sep = "-")) %>%
   select(depth_pos, season, week, gsis_id)
 
+# uncomment this if  running script for the first time
+#snap_counts <- load_snap_counts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+#  filter(position %in% c("QB", "RB", "TE", "WR")) %>%
+#  select(season, week, player, team, position, offense_snaps, offense_pct, opponent)
 
-snap_counts <- load_snap_counts(seasons =  c(2021, 2022, 2023, 2024)) %>%
+
+snap_counts <- load_snap_counts(seasons =  cur_season) %>%
   filter(position %in% c("QB", "RB", "TE", "WR")) %>%
   select(season, week, player, team, position, offense_snaps, offense_pct, opponent)
-
 
 
 ##############################################################
@@ -69,8 +81,12 @@ snap_counts <- load_snap_counts(seasons =  c(2021, 2022, 2023, 2024)) %>%
 
 ##### Offensive data #####
 
-# replace cur_year with 2024 to get data just to test on
-offense_weekly <- load_player_stats(seasons = c(2021,2022,2023,2024)) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
+# uncomment this if running for the first time
+#offense_weekly <- load_player_stats(seasons = c(2021,2022,2023,2024)) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
+
+
+offense_weekly <- load_player_stats(seasons = cur_season) %>% filter(position %in% c("FB", "QB", "RB", "TE", "WR"))
+
 
 # getting half ppr calculations
 offense_weekly <- offense_weekly %>%
@@ -85,7 +101,10 @@ offense_weekly <- offense_weekly %>%
 
 ##### Kicking data #####
 
-kicking <- load_player_stats(seasons = c(2021,2022,2023,2024), stat_type = "kicking")
+# uncomment this if running for the first time
+#kicking <- load_player_stats(seasons = c(2021,2022,2023,2024), stat_type = "kicking")
+
+kicking <- load_player_stats(seasons = cur_season, stat_type = "kicking")
 
 # adding extra columns that are the same to help with lining up columns are all data
 kicking_weekly <- kicking %>%
@@ -98,7 +117,10 @@ kicking_weekly <- kicking %>%
   )
 
 ##### Defense data #####
+# uncomment this if running script for the first time
 defense_weekly <- load_player_stats(seasons = c(2021,2022, 2023, 2024), stat_type = "defense")
+
+defense_weekly <- load_player_stats(seasons = cur_season, stat_type = "defense")
 
 kicking_by_game <- kicking_weekly %>%
   mutate(kicking_points = case_when(
@@ -114,11 +136,18 @@ kicking_by_game <- kicking_weekly %>%
     TRUE ~ fg_blocked + pat_blocked)) %>%
   select(player_id, player_display_name, season, week, kicking_points, blocked_kicks)
   
+# uncomment this if running for the first time
+#depth_charts <- load_depth_charts(seasons = c(2021,2022,2023,2024)) %>%
+#  filter(position == "K" & game_type != "SBBYE") %>%
+#  select(season, club_code, week, gsis_id, full_name) %>%
+#  distinct()
+
 
 depth_charts <- load_depth_charts(seasons = c(2021,2022,2023,2024)) %>%
   filter(position == "K" & game_type != "SBBYE") %>%
   select(season, club_code, week, gsis_id, full_name) %>%
   distinct()
+
 
 kicking <- kicking_by_game %>%
   left_join(depth_charts, by = c("player_id" = "gsis_id", "season" = "season", "week" = "week")) %>% 
@@ -259,26 +288,34 @@ all_defense_weekly <- all_defense_weekly %>%
            total_points_allowed >= 46 ~ -5,
          ))
 
+### uncomment this section (lines 297-317) if running script the first time
+# pbp2024_tds <- pbp2024 %>%
+#   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+#   select(season, week, td_team)
+# 
+# pbp2023_tds <- pbp2023 %>%
+#   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+#   select(season, week, td_team)
+# 
+# pbp2022_tds <- pbp2022 %>%
+#   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+#   select(season, week, td_team)
+# 
+# pbp2021_tds <- pbp2021 %>%
+#   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
+#   select(season, week, td_team)
+# 
+# pbp_tds <- rbind(pbp2024_tds, pbp2023_tds, pbp2022_tds, pbp2021_tds)
+# 
+# pbp_tds <- pbp_tds %>%
+#   group_by(season, week, td_team) %>%
+#   summarize(st_tds = n())
 
-pbp2024_tds <- pbp2024 %>%
+pbp_cur_season_tds <- pbp_cur_season %>%
   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
   select(season, week, td_team)
 
-pbp2023_tds <- pbp2023 %>%
-  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
-  select(season, week, td_team)
-
-pbp2022_tds <- pbp2022 %>%
-  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
-  select(season, week, td_team)
-
-pbp2021_tds <- pbp2021 %>%
-  filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
-  select(season, week, td_team)
-
-pbp_tds <- rbind(pbp2024_tds, pbp2023_tds, pbp2022_tds, pbp2021_tds)
-
-pbp_tds <- pbp_tds %>%
+pbp_tds <- pbp_cur_season_tds %>%
   group_by(season, week, td_team) %>%
   summarize(st_tds = n())
 
@@ -291,6 +328,7 @@ all_defense_weekly[is.na(all_defense_weekly)] <- 0
   
 defense_weekly <- all_defense_weekly %>%
   mutate(fantasy_points = yards_points + points_fp + (2*interceptions) + (2*fumbles_recovered) + (2*blocked_kicks)+ (6*df_tds) + sacks + (6*st_tds))
+
 ########## Creating season totals ##########
 defense_season <- defense_weekly %>%
   group_by(season, team) %>%
@@ -420,8 +458,6 @@ kicking_season <- kicking_weekly %>%
 ##### Standardizing column names #####
 all_columns_weekly <- union(names(offense_weekly), union(names(kicking_weekly), names(defense_weekly)))
 all_columns_season <- union(names(offense_season), union(names(kicking_season), names(defense_season)))
-#all_columns_weekly <- union(names(offense_weekly), names(kicking_weekly))
-#all_columns_season <- union(names(offense_season), names(kicking_season))
 
 
 # Add missing columns with NA values to each dataset
@@ -440,16 +476,12 @@ offense_season <- offense_season[all_columns_season]
 kicking_season <- kicking_season[all_columns_season]
 defense_season <- defense_season[all_columns_season]
 
-# Now you can rbind()
-#season_stats_all <- rbind(season_stats_all, offense_season, kicking_season, defense_season) %>% distinct()
-#weekly_stats_all <- rbind(weekly_stats_all, offense_weekly, kicking_weekly, defense_weekly) %>% distinct()
-
 
 
 ########## Joining with ff_ids ##########
-season_stats_all <- rbind(offense_season, kicking_season, defense_season) %>% 
+cur_season_stats_all <- rbind(offense_season, kicking_season, defense_season) %>% 
   distinct()
-weekly_stats_all <- rbind(offense_weekly, kicking_weekly, defense_weekly) %>% 
+cur_weekly_stats_all <- rbind(offense_weekly, kicking_weekly, defense_weekly) %>% 
   distinct()
 
 
@@ -468,22 +500,22 @@ new_row <- data.frame(
 ff_ids <- bind_rows(ff_ids, new_row)
 
 # adding "defense" to player id in season and weekly data for joining purposes
-season_stats_all$player_id[is.na(season_stats_all$player_id)] <- "defense"
-weekly_stats_all$player_id[is.na(weekly_stats_all$player_id)] <- "defense"
+cur_season_stats_all$player_id[is.na(cur_season_stats_all$player_id)] <- "defense"
+cur_weekly_stats_all$player_id[is.na(cur_weekly_stats_all$player_id)] <- "defense"
 
 
 
 
-season_stats_all <- season_stats_all %>% 
+cur_season_stats_all <- cur_season_stats_all %>% 
   left_join(ff_ids, by = c("player_id" = "gsis_id"))
 
-weekly_stats_all <- weekly_stats_all %>% 
+cur_weekly_stats_all <- cur_weekly_stats_all %>% 
   left_join(ff_ids, by = c("player_id" = "gsis_id"))
 
 
 
 ########## Adding espn_ids for defenses to allow for joining in other code ##########
-weekly_stats_all <- weekly_stats_all %>%
+cur_weekly_stats_all <- cur_weekly_stats_all %>%
   mutate(espn_id = case_when(
     (team == "DEN" & player_id == "defense")~ "-16007", 
     (team == "BUF" & player_id == "defense") ~ "-16002", 
@@ -521,7 +553,7 @@ weekly_stats_all <- weekly_stats_all %>%
   ))
 
 
-season_stats_all <- season_stats_all %>%
+cur_season_stats_all <- cur_season_stats_all %>%
   mutate(espn_id = case_when(
     (team == "DEN" & player_id == "defense") ~ "-16007", 
     (team == "BUF" & player_id == "defense") ~ "-16002", 
@@ -558,11 +590,13 @@ season_stats_all <- season_stats_all %>%
     TRUE ~ espn_id
   ))
 
+# Now you can rbind()
+season_stats_all <- rbind(season_stats_all, cur_season_stats_all) %>% distinct()
+weekly_stats_all <- rbind(weekly_stats_all, cur_weekly_stats_all) %>% distinct()
+
 
 
 ########## Uploading data back to google sheets ##########
-# Adding new sheets if necessary
-# Add a worksheet (if it doesnb
 
 ##### Update the workbook with new data #####
 writeData(wb, sheet = "Season", season_stats_all)
@@ -584,27 +618,3 @@ drive_upload(
 )
 
 
-####  TAKE ff_ids #####
-# select gsis_id, espn_id and player name, age, draft_rd, draft_pick, draft_ovr
-# join gsis id in ff_ids with gsis_id in data tables
-# then with the data from ESPN FF, then we can assign the weekly points/season totals to each player
-
-
-
-
-# Create a new workbook
-wb <- createWorkbook()
-
-# Add worksheets
-addWorksheet(wb, sheetName = "Season")
-addWorksheet(wb, sheetName = "Weekly")
-
-# Write data to sheets
-writeData(wb, sheet = "Season", x = season_stats_all)
-writeData(wb, sheet = "Weekly", x = weekly_stats_all)
-
-# Define your download path (adjust if not Windows or macOS)
-download_path <- file.path("C:/Senior/Spring/DS 440", "ff_data_test.xlsx")
-
-# Save workbook
-saveWorkbook(wb, file = download_path, overwrite = TRUE)
