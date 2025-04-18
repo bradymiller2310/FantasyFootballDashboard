@@ -13,6 +13,8 @@ This project is an interactive fantasy football analytics dashboard designed to 
 
 The dashboard allows users to explore advanced statistics, analyze weekly matchups, and make data-informed roster decisions. It is scalable and customizable to any ESPN league via simple backend adjustments. Inspired by existing dashboards and popular fantasy platforms, this tool aims to be a one-stop resource for both casual and competitive fantasy football players.
 
+The **Getting Started** section at the bottom of this will instruct you on how to get started with creating a dashboard that is customizable to your own fantasy football league
+
 ### **Dashboard Page Summaries**
 
 #### **League Home**
@@ -55,3 +57,6 @@ The dashboard allows users to explore advanced statistics, analyze weekly matchu
   
 5) _nflverse_data.R_
    - This R script gathers various data from the nflVerse github repository, where it aggregates data into season long statistics, outputting an excel file into your google drive, that has season and weekly statistical data. It gathers offensive, defensive, kicking, roster/depth chart and player information data from the repository.
+  
+
+### **Getting Started**
