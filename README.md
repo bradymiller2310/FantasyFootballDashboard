@@ -40,3 +40,18 @@ The dashboard allows users to explore advanced statistics, analyze weekly matchu
 - A sortable table shows projections alongside fantasy points per game and total points for the season.
 - Users can filter by position or view all players at once for broader analysis.
 
+### **Repository Structure**
+1) _ESPN_FF_Scraper.ipynb_
+   - This file is the jupyter notebook file that is used to gather data on the fantasy football league using ESPN's API
+
+2) _all_fantasy_data.xlsx_
+   - This excel is the result of the jupyter notebook file, and is the excel file that will be used to fuel the Tableau dashboard. It contains various excel sheets, with data on weekly and season statistics, weekly league schedule and scoring, team rosters, schedule swap data and player point projections.
+
+3) _ff_data (empty).xlsx_
+   - This excel file is a template that the user may download and use if they would like to run and get past years data from nfl verse themselves. This file is not necessary to use those, as we have provided another excel file (ff_data.xlsx) that alreayd has all the past data that the user would be scraping if they wanted to run it themselves.
+  
+4) _ff_data.xlsx_
+   - The ff_data.xlsx excel file is the result of the nflverse_data.R script and contains season long and weekly player statistics. This file is read into the jupyter notebook file and is combined with fantasy football league specific data to eventually output the all_fantasy_data.xlsx file.
+  
+5) _nflverse_data.R_
+   - This R script gathers various data from the nflVerse github repository, where it aggregates data into season long statistics, outputting an excel file into your google drive, that has season and weekly statistical data. It gathers offensive, defensive, kicking, roster/depth chart and player information data from the repository.
