@@ -1,6 +1,6 @@
 # **Fantasy Football Dashboard**
 
-### **Project Overview**
+## **Project Overview**
 This project is an interactive fantasy football analytics dashboard designed to give league managers deeper insights and comparisons than those offered by standard platforms like ESPN or Yahoo. Built in Tableau and powered by data from the NFLverse GitHub repository and ESPN’s Fantasy API, the dashboard features four main pages:
 
 **League Home** – Overview of league performance and trends
@@ -18,7 +18,7 @@ https://public.tableau.com/app/profile/brady.miller4618/viz/FantasyFootballDashb
 
 The **Getting Started** section at the bottom of this will instruct you on how to get started with creating a dashboard that is customizable to your own fantasy football league
 
-### **Dashboard Page Summaries**
+## **Dashboard Page Summaries**
 
 #### **League Home**
 - Serves as the starting point for users to get a broad overview of their fantasy league.
@@ -45,7 +45,7 @@ The **Getting Started** section at the bottom of this will instruct you on how t
 - A sortable table shows projections alongside fantasy points per game and total points for the season.
 - Users can filter by position or view all players at once for broader analysis.
 
-### **Repository Structure**
+## **Repository Structure**
 1) _ESPN_FF_Scraper.ipynb_
    - This file is the jupyter notebook file that is used to gather data on the fantasy football league using ESPN's API
 
@@ -65,4 +65,58 @@ The **Getting Started** section at the bottom of this will instruct you on how t
    - This R script gathers various data from the nflVerse github repository, where it aggregates data into season long statistics, outputting an excel file into your google drive, that has season and weekly statistical data. It gathers offensive, defensive, kicking, roster/depth chart and player information data from the repository.
   
 
-### **Getting Started**
+## **Getting Started**
+Follow the steps below to get started with creating your own fantasy football dashboard, customized to your very own league.
+
+1) Download R Studio & R
+   - This can be done at the following link  (https://posit.co/download/rstudio-desktop/)
+
+2) This project/code requires you to have an email account that has access to a google drive where you can save the excel files. Make sure you are logged into a google drive with one of your email accounts.
+
+3) In the GitHub, download the following files:
+   - _ESPN_FF_Scraper.ipynb_
+   - _Fantasy Football Dashboard.twbx_
+   - _ff_data.xlsx_
+   - _nflverse_data.R_
+
+4) Upload the ff_data.xlsx file to the home page (_My Drive_ section) of your google drive.
+
+5) The ff_data.xlsx file provides all weekly and player data from 2021 - 2024 so there is no need to have to run the R script as if you are starting from scratch. The R script file is currently 'designed' to be in the form where you only are running it once a week (at the end of each week of football) to gather all data from that season, including the previous week.
+
+6) Open up the **ESPN_FF_Scraper.ipynb** file in your google colab and go to the 3rd code chunk
+   - In here, you will have to change the 4 parameter values within the League() function.
+   - League id: this can be found by going to your fantasy football league page and in the URL, copying the numbers after "LeagueId="
+   - year: this is simply the year in which the NFL started. So for the 2024-2025 season, you would use the value 2024
+   - espn_s2 & swid: to get these, when you are on the fantasy football page, right click and select "Inspect". Go to the application tab, and under the "Cookies" section on the left select the tab for fantasy.espn.com. In the table that appears find "espn_s2" and "swid" under the name column and and copy and paste the text in the value column next to each name into the appropriate spot in the function in that 3rd code chunk
+   **_This only has to be done the first time_
+
+7) Download Tableau Public via the following link (https://www.tableau.com/support/releases/desktop/2024.3) & create a Tableau Public account.
+
+**Note:** the following steps are only to be done once a week, at the conclusion of a week of NFL football
+
+8) Open up RStudio and open the **nflverse_data.R** file
+   - Assuming you have not worked with any of the necessary R libraries before, run the following line in your console to download those necessary packages: install.packages(c("nflreadr", "tidyverse", "httr", "jsonlite", "dplyr", "googledrive", "googlesheets4", "readr", "openxlsx"))
+   - Change line 26 to match the current NFL season
+  
+9) Highlight and click run for the first 7 lines of code - the 7th line contains a function for authenticating your google drive, so the R file can connect to your google drive and obtain the excel file that you will add onto. It will give you some instructions on what to do when you run this line - either going through your web browser to authenticate a new account or just typing in 2 and pressing enter if you have already done something similar before.
+
+10) After doing this, highlight the rest of the code and click "Run".
+
+11) Once this is done, open up google colab, and open the **ESPN_FF_Scraper.ipynb** file.
+   - Click "Run All" under the RunTime tab along the top
+   - After the first code chunk, it will give you a popup telling you to restart your session (this is normal and supposed to happen)
+   - Click "Restart" and once the session has been restarted, click "Run All" again
+
+12) Once that code file is done running, you will now have a file called _all_fantasy_data.xlsx_ in your google drive - this will be used to fuel the visualizations in Tableau.
+
+13) Open Tableau Public and open the _Fantasy Football Dashboard.twbx_ file that you downloaded from the GitHub.
+
+14) Once it has loaded, click on the data sources tab (should be in the bottom left of your screen).
+
+15) After a few seconds of loading, it will have you authenticate your google drive account, as it needs to access the excel file that is stored in there.
+
+16) Once that is done, the data should be all updated, but you can check other tabs along the bottom to be sure.
+
+17) Click "Save to Tableau Public as" and enter in your account information as well as what you would like the display name for your dashboard to be when being shown on Tableau Public.
+
+18) Once that is done, it will open up the page online in which you can share the link with anyone in your league - and there you have it, your fantasy football league's very own interactive dashboard to give you new insights to help fuel your teams success!
