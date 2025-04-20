@@ -66,7 +66,7 @@ The **Getting Started** section at the bottom of this will instruct you on how t
   
 
 ## **Getting Started**
-Follow the steps below to get started with creating your own fantasy football dashboard, customized to your very own league.
+Follow the steps below to get started with creating your own fantasy football dashboard, customized to your very own league. If you have any questions about the steps below, feel free reach out to either of us via the emails at the top.
 
 1) Download R Studio & R
    - This can be done at the following link  (https://posit.co/download/rstudio-desktop/)
