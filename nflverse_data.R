@@ -9,6 +9,15 @@ drive_auth(use_oob = TRUE)
 # reading in excel file from 
 file <- drive_get("ff_data.xlsx")
 
+### uncomment this section and comment out line 10 if you have another file with the same ff_data.xlsx name in another folder OR if you want to specify the folder 
+# folder <- drive_get("FantasyFootballData")  # replace with your actual folder name
+# 
+# # Now get the file from inside that folder
+# file <- drive_ls(folder) %>%
+#   filter(name == "ff_data.xlsx")
+
+
+
 temp_file <- tempfile(fileext = ".xlsx")
 
 # downloading the file
@@ -25,7 +34,7 @@ weekly_stats_all <- read.xlsx(wb, sheet = "Weekly")
 ##### removing all rows from current season so season metrics can be recalculated given this runs every week #####
 cur_season <- 2024 # This needs to be updated at the start of each season
 
-##### Uncomment lines 30 & 31 out when running on a weekly basis#####
+##### Uncomment lines 39 & 40 out when running on a weekly basis#####
 
 season_stats_all <- season_stats_all %>% filter(season != cur_season) 
 weekly_stats_all <- weekly_stats_all %>% filter(season != cur_season) 
@@ -34,7 +43,7 @@ weekly_stats_all <- weekly_stats_all %>% filter(season != cur_season)
 
 nflreadr::.clear_cache()
 
-##### Run lines 39-42 if running the script for the first time #####
+##### Run lines 48-51 if running the script for the first time #####
 # loading in play by play data from 2021-2024
 #pbp2024 <- load_pbp(2024)
 #pbp2023 <- load_pbp(2023)
@@ -288,7 +297,7 @@ all_defense_weekly <- all_defense_weekly %>%
            total_points_allowed >= 46 ~ -5,
          ))
 
-### uncomment this section (lines 297-317) if running script the first time
+### uncomment this section (lines 301-321) if running script the first time
 # pbp2024_tds <- pbp2024 %>%
 #   filter(return_touchdown == 1 & play_type %in% c("kickoff", "punt")) %>%
 #   select(season, week, td_team)
@@ -616,5 +625,26 @@ drive_upload(
   name = "ff_data.xlsx",
   type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
+
+
+### uncomment this section (lines 631-648) & comment out lines 615-627 if you want to specify a particular folder location when uploading the file
+# saveWorkbook(wb, "ff_data.xlsx", overwrite = TRUE)
+# 
+# # Locate the folder
+# folder <- drive_get("FantasyFootballData")  # insert actual folder name here
+# 
+# # Delete the existing file in that folder (if it exists)
+# old_file <- drive_ls(folder) %>% filter(name == "ff_data.xlsx")
+# if (nrow(old_file) > 0) {
+#   drive_rm(old_file)
+# }
+# 
+# # Upload the new file to the same folder
+# drive_upload(
+#   media = "ff_data.xlsx",
+#   name = "ff_data.xlsx",
+#   path = folder,
+#   type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+# )
 
 
