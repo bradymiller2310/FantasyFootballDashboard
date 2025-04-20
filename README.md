@@ -76,6 +76,7 @@ Follow the steps below to get started with creating your own fantasy football da
 3) In the GitHub, download the following files:
    - _ESPN_FF_Scraper.ipynb_
    - _Fantasy Football Dashboard.twbx_
+       **For the DS 440 TA/professor grading this, instead of having to download Tableau Public and going through the process of publishing your own dashboard, you can just use the link at the bottom of the project summary section so you can see what the finished dashboard looks like
    - _ff_data.xlsx_
    - _nflverse_data.R_
 
