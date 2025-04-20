@@ -76,28 +76,29 @@ Follow the steps below to get started with creating your own fantasy football da
 3) In the GitHub, download the following files:
    - _ESPN_FF_Scraper.ipynb_
    - _Fantasy Football Dashboard.twbx_
-       **For the DS 440 TA/professor grading this, instead of having to download Tableau Public and going through the process of publishing your own dashboard, you can just use the link at the bottom of the project summary section so you can see what the finished dashboard looks like
    - _ff_data.xlsx_
-   - _nflverse_data.R_
+   - _nflverse_data.R_     
 
 4) Upload the ff_data.xlsx file to the home page (_My Drive_ section) of your google drive.
+   - If you choose to store the excel files in another folder location of your choice OR there is another file in your google drive that you already have (separate from this) which has the same name (_ff_data.xlsx_), comment out lines 10 & 631-648, and uncomment ines 12-17 & 631-648
+ 
+6) The ff_data.xlsx file provides all weekly and player data from 2021 - 2024 so there is no need to have to run the R script as if you are starting from scratch. The R script file is currently 'designed' to be in the form where you only are running it once a week (at the end of each week of football) to gather all data from that season, including the previous week. Instructions within the code show which lines can be commented/uncommented to allow you to run it from scratch. If doing so, you would need to download the _ff_data (empty).xlsx_ file, put it in your google drive and then rename it to _ff_data.xslx_.
 
-5) The ff_data.xlsx file provides all weekly and player data from 2021 - 2024 so there is no need to have to run the R script as if you are starting from scratch. The R script file is currently 'designed' to be in the form where you only are running it once a week (at the end of each week of football) to gather all data from that season, including the previous week.
-
-6) Open up the **ESPN_FF_Scraper.ipynb** file in your google colab and go to the 3rd code chunk
+ 7) Open up the **ESPN_FF_Scraper.ipynb** file in your google colab and go to the 3rd code chunk
    - In here, you will have to change the 4 parameter values within the League() function.
    - League id: this can be found by going to your fantasy football league page and in the URL, copying the numbers after "LeagueId="
    - year: this is simply the year in which the NFL started. So for the 2024-2025 season, you would use the value 2024
    - espn_s2 & swid: to get these, when you are on the fantasy football page, right click and select "Inspect". Go to the application tab, and under the "Cookies" section on the left select the tab for fantasy.espn.com. In the table that appears find "espn_s2" and "swid" under the name column and and copy and paste the text in the value column next to each name into the appropriate spot in the function in that 3rd code chunk
    - **_This step only has to be done the first time_
+   - **_For the sake of testing the code, use the parameters that we have provided_
 
-7) Download Tableau Public via the following link (https://www.tableau.com/support/releases/desktop/2024.3) & create a Tableau Public account.
+8) Download Tableau Public via the following link (https://www.tableau.com/support/releases/desktop/2024.3) & create a Tableau Public account.
 
 **Note:** the following steps are only to be done once a week, at the conclusion of a week of NFL football
 
 8) Open up RStudio and open the **nflverse_data.R** file
    - Assuming you have not worked with any of the necessary R libraries before, run the following line in your console to download those necessary packages: install.packages(c("nflreadr", "tidyverse", "httr", "jsonlite", "dplyr", "googledrive", "googlesheets4", "readr", "openxlsx"))
-   - Change line 26 to match the current NFL season
+   - Change line 26 to match the current NFL season (2024 is the current season that just finished, can't change it to 2025, since there is not data available as that season starts in the fall).
   
 9) Highlight and click run for the first 7 lines of code - the 7th line contains a function for authenticating your google drive, so the R file can connect to your google drive and obtain the excel file that you will add onto. It will give you some instructions on what to do when you run this line - either going through your web browser to authenticate a new account or just typing in 2 and pressing enter if you have already done something similar before.
 
@@ -109,6 +110,8 @@ Follow the steps below to get started with creating your own fantasy football da
    - Click "Restart" and once the session has been restarted, click "Run All" again
 
 12) Once that code file is done running, you will now have a file called _all_fantasy_data.xlsx_ in your google drive - this will be used to fuel the visualizations in Tableau.
+
+   - **For the DS 440 TA/professor grading this, instead of having to download Tableau Public and going through the process of publishing your own dashboard, once you finish running the R script and jupyter notebook code files, you can just use the link at the bottom of the Project Summary section at the top of this ReadMe file so you can see what the finished dashboard looks like.
 
 13) Open Tableau Public and open the _Fantasy Football Dashboard.twbx_ file that you downloaded from the GitHub.
 
